@@ -11,7 +11,7 @@ void loop() {
   // put your main code here, to run repeatedly:
 
   digitalWrite(LED_BUILTIN, HIGH);
-  delay(500);
+  delay(100);
   digitalWrite(LED_BUILTIN, LOW);
-  delay(500);
+  delay(100);
 }
