@@ -3,7 +3,7 @@
 #define pinButton 2
 #define pinLed  7
 
-int buttonState = 0;
+int buttonState1 = 0, buttonState2 = 0;
 
 void setup() {
   // put your setup code here, to run once:
@@ -16,13 +16,17 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  buttonState = digitalRead(pinButton);
+  buttonState1 = digitalRead(pinButton);
+  delay(300);
+  buttonState2 = digitalRead(pinButton);
 
-  if (!(buttonState == HIGH)){
+  if (buttonState1 == buttonState2){
+    if (!(buttonState1 == HIGH)){
     digitalWrite(pinLed,HIGH);
-    delay(1); //использование задержки для ожидания установившегося контакта
   } else{
     digitalWrite(pinLed,LOW);
   }
+  }
+  
 
 }
