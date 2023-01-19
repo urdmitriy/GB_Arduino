@@ -22,10 +22,10 @@ void loop() {
 
   if (buttonState1 == buttonState2){
     if (!(buttonState1 == HIGH)){
-    digitalWrite(pinLed,HIGH);
-  } else{
-    digitalWrite(pinLed,LOW);
-  }
+      digitalWrite(pinLed,HIGH);
+      } else{
+      digitalWrite(pinLed,LOW);
+    }
   }
   
 
