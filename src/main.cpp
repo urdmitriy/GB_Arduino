@@ -1,47 +1,58 @@
 #include <Arduino.h>
 
-#define PinLed1 12
-#define PinLed2 10
-#define PinLed3 8
-#define PinResistor A0
-#define PinPhotoResistor A5
+#define pinLedRed 10
+#define pinLedGreen 6
+#define pinLedBlue 5
+#define pinResistor A0
+#define delayColor 3000
 
-
-int16_t valuePhotoSensor = 0;
+uint8_t ledArray[3] = {pinLedRed, pinLedGreen, pinLedBlue};
+unsigned long timeStamp = millis();
+uint8_t numberActiveLed = 0;
 
 void setup() {
   // put your setup code here, to run once:
-  pinMode(PinLed1, OUTPUT);
-  pinMode(PinLed2, OUTPUT);
-  pinMode(PinLed3, OUTPUT);
-  Serial.begin(115200);
+  pinMode(pinLedRed, OUTPUT);
+  pinMode(pinLedGreen, OUTPUT);
+  pinMode(pinLedBlue, OUTPUT);
 }
 
-void switchLed(uint16_t value){
-if (value >= 0 && value < 340){
-    digitalWrite(PinLed1, HIGH);
-    digitalWrite(PinLed2, LOW);
-    digitalWrite(PinLed3, LOW);
+uint16_t readData(void){
+  static int32_t valuePhotoSensor = 0;
+  valuePhotoSensor += (analogRead(pinResistor) - valuePhotoSensor) * 0.1;
+  return valuePhotoSensor*255/1023;
+}
+
+void lightLed(uint8_t pinLed, uint8_t valueLight){
+
+  if (pinLed == pinLedRed) {
+    analogWrite(pinLedRed, valueLight); 
+    analogWrite(pinLedBlue, 0); 
+    analogWrite(pinLedGreen, 0);
+  } else if (pinLed == pinLedGreen) {
+    analogWrite(pinLedGreen, valueLight); 
+    analogWrite(pinLedBlue, 0); 
+    analogWrite(pinLedRed, 0);
+  } else{
+    analogWrite(pinLedBlue, valueLight); 
+    analogWrite(pinLedGreen, 0); 
+    analogWrite(pinLedRed, 0);
   }
-  else if (value>=340 && value < 680) {
-    digitalWrite(PinLed1, LOW);
-    digitalWrite(PinLed2, HIGH);
-    digitalWrite(PinLed3, LOW);
-  }
-  else {
-    digitalWrite(PinLed1, LOW);
-    digitalWrite(PinLed2, LOW);
-    digitalWrite(PinLed3, HIGH);
-  }
+
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
- 
-  switchLed(analogRead(PinResistor));
-
-  valuePhotoSensor += (analogRead(PinPhotoResistor) - valuePhotoSensor) * 0.1;
   
-  Serial.println(valuePhotoSensor*10/1023);
-
+  if (millis() - timeStamp > delayColor){
+    if (numberActiveLed<2){
+      numberActiveLed++;
+    }
+    else{
+      numberActiveLed = 0;
+    }
+    timeStamp = millis();
+  }
+  
+  lightLed(ledArray[numberActiveLed], readData());
 }
