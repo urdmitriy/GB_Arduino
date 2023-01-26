@@ -5,24 +5,24 @@
 #define pinSRCLK 9
 
 void sendTo595(uint16_t value){
-  for (size_t i = 0; i < 9; i++)
+  for (size_t i = 0; i < 9; i++) 
   {
 
-    if (value & 0x01 << (8-i)){
-      digitalWrite(pinSER, HIGH);
+    if (value & 0x01 << (8-i)){   // раскладываем побитно value
+      digitalWrite(pinSER, HIGH);  // если 1, то SER в высокий уровень
     }
     else {
-      digitalWrite(pinSER, LOW);
+      digitalWrite(pinSER, LOW);  // если 0, то SER в низкий уровень
     }
     
-    digitalWrite(pinSRCLK,HIGH);
+    digitalWrite(pinSRCLK,HIGH);  //помещаем бит в сдвиговый регистр
     delayMicroseconds(1);
     digitalWrite(pinSRCLK,LOW);
     delayMicroseconds(1);
     
   }
 
-  digitalWrite(pinRCLK,HIGH);
+  digitalWrite(pinRCLK,HIGH);    //помещаем данные из сдвигового регистра в регистр хранения
   delayMicroseconds(1);
   digitalWrite(pinRCLK,LOW);
   delayMicroseconds(1);
