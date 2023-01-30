@@ -1,57 +1,101 @@
 #include <Arduino.h>
+#include "Wire.h"
+#include "APDS9930.h"
 
-#define pinSER 10
-#define pinRCLK 8
-#define pinSRCLK 9
+#define pinSensor 7
+#define switchPinToIn pinMode(pinSensor, INPUT); 
+#define switchPinToOut pinMode(pinSensor, OUTPUT); 
 
-void sendTo595(uint16_t value){
-  for (size_t i = 0; i < 9; i++) 
+#define APDS9930_INT    2  // Needs to be an interrupt pin
+#define LED_PIN         13 // LED for showing interrupt
+
+#define LIGHT_INT_HIGH  1000 // High light level for interrupt
+#define LIGHT_INT_LOW   10   // Low light level for interrupt
+
+typedef struct {  //для практики и удобства
+  int8_t temperature;
+  uint8_t humidity; 
+  float ambient;
+} dataSensor;
+
+APDS9930 apds = APDS9930();
+float ambient_light = 0;
+uint16_t ch0 = 0;
+uint16_t ch1 = 1;
+volatile bool isr_flag = false;
+uint16_t threshold = 0;
+
+int8_t readWordFromSensor(uint8_t pin){
+  int16_t data = 0;
+  for (size_t i = 0; i < 16; i++)
   {
-    if (value & 0x01 << (8-i)){   // раскладываем побитно value
-      digitalWrite(pinSER, HIGH);  // если 1, то SER в высокий уровень
-    }
-    else {
-      digitalWrite(pinSER, LOW);  // если 0, то SER в низкий уровень
-    }
+    while (!digitalRead(pin)); //ждем окончания "синхроимпульса"
+    unsigned long startTime = micros(); //измеряем время имульса данных 
+    while (digitalRead(pin)); //wait 1 or 0
     
-    digitalWrite(pinSRCLK,HIGH);  //помещаем бит в сдвиговый регистр
-    delayMicroseconds(1);
-    digitalWrite(pinSRCLK,LOW);
-    delayMicroseconds(1);
+    if (micros() - startTime > 40) { //Если импульс данных длиннее 40 (26-28) мкс, то бит = 1
+      data |= (1 << (15-i));
+    }
   }
 
-  digitalWrite(pinRCLK,HIGH);    //помещаем данные из сдвигового регистра в регистр хранения
-  delayMicroseconds(1);
-  digitalWrite(pinRCLK,LOW);
-  delayMicroseconds(1);
+  return (data>>8); //возвращаем старший байт
 }
 
-void printDigit(uint8_t value){
-  if (value>9) return;
-  uint8_t arrayChar[10] = {0b00111111, //0
-                          0b00000110,  //1
-                          0b01011011,  //2
-                          0b01001111,  //3
-                          0b01100110,  //4
-                          0b01101101,  //5
-                          0b01111101,  //6
-                          0b00000111,  //7
-                          0b01111111,  //8
-                          0b01101111}; //9
+void readSensors(dataSensor * data, uint8_t pin){
+  switchPinToOut;
+  digitalWrite(pin, LOW);  //
+  delay(20);               // стартовый импульс
+  digitalWrite(pin, HIGH); //
+  switchPinToIn;
+  while (digitalRead(pin)); // ждем начало импульса ответа
+  while (!digitalRead(pin)); // ждем окончания импульса ответа
+  while (digitalRead(pin)); //  ждем начала передачи данных
 
-  sendTo595(arrayChar[value]);
+  data->humidity =  readWordFromSensor(pin);
+  data->temperature = readWordFromSensor(pin);
+
+  if (!apds.readAmbientLightLux(data->ambient)) {
+    Serial.println(F("Error reading light values"));
+  } 
+}
+
+void printSensorsData(uint8_t pin){
+  dataSensor data;
+  readSensors(&data, pin);
+  Serial.print("Data sensor: Temperature = ");
+  Serial.print(data.temperature);
+  Serial.print("C, Humidity = ");
+  Serial.print(data.humidity);
+  Serial.print("%, Ambient = ");
+  Serial.print(data.ambient);
+  Serial.println(".");
 }
 
 void setup() {
-  pinMode(pinSER, OUTPUT);
-  pinMode(pinRCLK, OUTPUT);
-  pinMode(pinSRCLK, OUTPUT);
+  Serial.begin(115200);
+  
+  if ( apds.init() ) {
+  Serial.println(F("APDS-9930 initialization complete"));
+  } 
+  else {
+    Serial.println(F("Something went wrong during APDS-9930 init!"));
+  }
+
+  if ( apds.enableLightSensor(false) ) {
+    Serial.println(F("Light sensor is now running"));
+  } else {
+    Serial.println(F("Something went wrong during light sensor init!"));
+  }
+
+  switchPinToOut;
+  digitalWrite(pinSensor,HIGH);
+  delay(1500);
+
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(APDS9930_INT, INPUT);
 }
 
 void loop() {
-  for (size_t i = 0; i < 10; i++)
-  {
-    printDigit(i);
-    delay(500);
-  }
+  printSensorsData(pinSensor);
+  delay(2000);
 }
