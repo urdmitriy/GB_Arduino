@@ -27,6 +27,7 @@ void sendTo595(uint16_t value){
 }
 
 void printDigit(uint8_t value){
+  if (value>9) return;
   uint8_t arrayChar[10] = {0b00111111, //0
                           0b00000110,  //1
                           0b01011011,  //2
