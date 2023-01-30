@@ -7,7 +7,6 @@
 void sendTo595(uint16_t value){
   for (size_t i = 0; i < 9; i++) 
   {
-
     if (value & 0x01 << (8-i)){   // раскладываем побитно value
       digitalWrite(pinSER, HIGH);  // если 1, то SER в высокий уровень
     }
@@ -19,7 +18,6 @@ void sendTo595(uint16_t value){
     delayMicroseconds(1);
     digitalWrite(pinSRCLK,LOW);
     delayMicroseconds(1);
-    
   }
 
   digitalWrite(pinRCLK,HIGH);    //помещаем данные из сдвигового регистра в регистр хранения
@@ -29,41 +27,18 @@ void sendTo595(uint16_t value){
 }
 
 void printDigit(uint8_t value){
-  switch (value)
-  {
-  case 0:
-    sendTo595(0b00111111);
-    break;
-  case 1:
-    sendTo595(0b00000110);
-    break;
-  case 2:
-    sendTo595(0b01011011);
-    break;
-  case 3:
-    sendTo595(0b01001111);
-    break;
-  case 4:
-    sendTo595(0b01100110);
-    break;
-  case 5:
-    sendTo595(0b01101101);
-    break;
-  case 6:
-    sendTo595(0b01111101);
-    break;
-  case 7:
-    sendTo595(0b00000111);
-    break;
-  case 8:
-    sendTo595(0b01111111);
-    break;
-  case 9:
-    sendTo595(0b01101111);
-    break;
-  default:
-    break;
-  }
+  uint8_t arrayChar[10] = {0b00111111, //0
+                          0b00000110,  //1
+                          0b01011011,  //2
+                          0b01001111,  //3
+                          0b01100110,  //4
+                          0b01101101,  //5
+                          0b01111101,  //6
+                          0b00000111,  //7
+                          0b01111111,  //8
+                          0b01101111}; //9
+
+  sendTo595(arrayChar[value]);
 }
 
 void setup() {
