@@ -25,20 +25,37 @@ uint16_t ch1 = 1;
 volatile bool isr_flag = false;
 uint16_t threshold = 0;
 
+
+uint8_t waitLine(uint8_t waitValue, uint16_t maxTime, uint8_t pin){
+  unsigned long timeStart = micros();
+  unsigned long length;
+  while (digitalRead(pin)==waitValue && (length = micros()-timeStart)<maxTime);
+  if (length > maxTime){
+    return 1; //ошибка
+  }
+  return 0;
+}
+
 int8_t readWordFromSensor(uint8_t pin){
   int16_t data = 0;
+  uint8_t error = 0;
   for (size_t i = 0; i < 16; i++)
   {
-    while (!digitalRead(pin)); //ждем окончания "синхроимпульса"
+    error += waitLine(0,100,pinSensor); //ждем окончания "синхроимпульса"
     unsigned long startTime = micros(); //измеряем время имульса данных 
-    while (digitalRead(pin)); //wait 1 or 0
+    error += waitLine(1,100,pinSensor); //wait 1 or 0
     
     if (micros() - startTime > 40) { //Если импульс данных длиннее 40 (26-28) мкс, то бит = 1
       data |= (1 << (15-i));
     }
   }
 
-  return (data>>8); //возвращаем старший байт
+  if (error == 0){
+    return data>>8; //если ошибки не было, выдаем старший байт
+  }else{
+    Serial.println("Error sensor");
+    return 0;
+  }
 }
 
 void readSensors(dataSensor * data, uint8_t pin){
@@ -47,9 +64,18 @@ void readSensors(dataSensor * data, uint8_t pin){
   delay(20);               // стартовый импульс
   digitalWrite(pin, HIGH); //
   switchPinToIn;
-  while (digitalRead(pin)); // ждем начало импульса ответа
-  while (!digitalRead(pin)); // ждем окончания импульса ответа
-  while (digitalRead(pin)); //  ждем начала передачи данных
+  uint8_t error = 0;
+  error += waitLine(1,100,pinSensor); // ждем начало импульса ответа
+  error += waitLine(0,100,pinSensor); // ждем окончания импульса ответа
+  error += waitLine(1,100,pinSensor); //  ждем начала передачи данных
+
+  if (error > 0){
+    data->humidity =  readWordFromSensor(pin);
+    data->temperature = readWordFromSensor(pin);
+  } else {
+    data->humidity =  0;
+    data->temperature = 0;
+  }
 
   data->humidity =  readWordFromSensor(pin);
   data->temperature = readWordFromSensor(pin);
