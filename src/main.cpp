@@ -1,30 +1,33 @@
 #include <Arduino.h>
+#include "SPI.h"
 #include "Wire.h"
-#include "APDS9930.h"
+#include "Adafruit_GFX.h"
+#include "Adafruit_ST7735.h"
+
 
 #define pinSensor 7
 #define switchPinToIn pinMode(pinSensor, INPUT); 
 #define switchPinToOut pinMode(pinSensor, OUTPUT); 
 
-#define APDS9930_INT    2  // Needs to be an interrupt pin
-#define LED_PIN         13 // LED for showing interrupt
+#define TFT_CS 10
+#define TFT_DC 9
+#define TFT_RST 8
 
-#define LIGHT_INT_HIGH  1000 // High light level for interrupt
-#define LIGHT_INT_LOW   10   // Low light level for interrupt
+const uint16_t  Display_Color_Black        = 0x0000;
+const uint16_t  Display_Color_Blue         = 0x001F;
+const uint16_t  Display_Color_Red          = 0xF800;
+const uint16_t  Display_Color_Green        = 0x07E0;
+const uint16_t  Display_Color_Cyan         = 0x07FF;
+const uint16_t  Display_Color_Magenta      = 0xF81F;
+const uint16_t  Display_Color_Yellow       = 0xFFE0;
+const uint16_t  Display_Color_White        = 0xFFFF;
+
+Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 
 typedef struct {  //для практики и удобства
   int8_t temperature;
   uint8_t humidity; 
-  float ambient;
 } dataSensor;
-
-APDS9930 apds = APDS9930();
-float ambient_light = 0;
-uint16_t ch0 = 0;
-uint16_t ch1 = 1;
-volatile bool isr_flag = false;
-uint16_t threshold = 0;
-
 
 uint8_t waitLine(uint8_t waitValue, uint16_t maxTime, uint8_t pin){
   unsigned long timeStart = micros();
@@ -79,46 +82,62 @@ void readSensors(dataSensor * data, uint8_t pin){
 
   data->humidity =  readWordFromSensor(pin);
   data->temperature = readWordFromSensor(pin);
-
-  if (!apds.readAmbientLightLux(data->ambient)) {
-    Serial.println(F("Error reading light values"));
-  } 
 }
 
 void printSensorsData(uint8_t pin){
   dataSensor data;
+  static dataSensor oldData;
   readSensors(&data, pin);
+
+  //стираем старые данные
+  tft.setTextColor(0x0000);
+  
+  tft.setCursor(50,0);
+  tft.print(oldData.temperature);
+
+  tft.setCursor(50,40);
+  tft.print(oldData.humidity);
+
+  //пишем новые данные
+  tft.setTextColor(data.humidity > 30 ? Display_Color_Red : Display_Color_Yellow);
+  
+  tft.setCursor(50,0);
+  tft.print(data.temperature);
+
+  tft.setCursor(50,40);
+  tft.print(data.humidity);
+
   Serial.print("Data sensor: Temperature = ");
   Serial.print(data.temperature);
   Serial.print("C, Humidity = ");
   Serial.print(data.humidity);
-  Serial.print("%, Ambient = ");
-  Serial.print(data.ambient);
-  Serial.println(".");
+  Serial.println("%.");
+
+  oldData.humidity = data.humidity;
+  oldData.temperature = data.temperature;
 }
 
 void setup() {
   Serial.begin(115200);
-  
-  if ( apds.init() ) {
-  Serial.println(F("APDS-9930 initialization complete"));
-  } 
-  else {
-    Serial.println(F("Something went wrong during APDS-9930 init!"));
-  }
-
-  if ( apds.enableLightSensor(false) ) {
-    Serial.println(F("Light sensor is now running"));
-  } else {
-    Serial.println(F("Something went wrong during light sensor init!"));
-  }
-
   switchPinToOut;
   digitalWrite(pinSensor,HIGH);
+  
   delay(1500);
+  
+  tft.initR(INITR_144GREENTAB);
+  tft.setFont();
+  tft.fillScreen(Display_Color_Black);
+  tft.setTextColor(Display_Color_White);
+  tft.setTextSize(4);
 
-  pinMode(LED_PIN, OUTPUT);
-  pinMode(APDS9930_INT, INPUT);
+  tft.setCursor(0,0);
+  tft.print("t=");
+  tft.setCursor(100,0);
+  tft.print("C");
+  tft.setCursor(0,40);
+  tft.print("h=");
+    tft.setCursor(100,40);
+  tft.print("%");
 }
 
 void loop() {
