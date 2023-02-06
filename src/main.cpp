@@ -89,30 +89,30 @@ void printSensorsData(uint8_t pin){
   static dataSensor oldData;
   readSensors(&data, pin);
 
-  //стираем старые данные
-  tft.setTextColor(0x0000);
+  if (data.temperature != oldData.temperature || data.humidity != oldData.humidity) {
+    //стираем старые данные
+    tft.setTextColor(0x0000);
+    tft.setCursor(50,0);
+    tft.print(oldData.temperature);
+    tft.setCursor(50,40);
+    tft.print(oldData.humidity);
+
+    //пишем новые данные
+    tft.setTextColor(data.humidity > 30 ? Display_Color_Red : Display_Color_Yellow);
+    tft.setCursor(50,0);
+    tft.print(data.temperature);
+    tft.setCursor(50,40);
+    tft.print(data.humidity);
+  }
   
-  tft.setCursor(50,0);
-  tft.print(oldData.temperature);
-
-  tft.setCursor(50,40);
-  tft.print(oldData.humidity);
-
-  //пишем новые данные
-  tft.setTextColor(data.humidity > 30 ? Display_Color_Red : Display_Color_Yellow);
-  
-  tft.setCursor(50,0);
-  tft.print(data.temperature);
-
-  tft.setCursor(50,40);
-  tft.print(data.humidity);
-
+  //пишем в порт
   Serial.print("Data sensor: Temperature = ");
   Serial.print(data.temperature);
   Serial.print("C, Humidity = ");
   Serial.print(data.humidity);
   Serial.println("%.");
 
+  //
   oldData.humidity = data.humidity;
   oldData.temperature = data.temperature;
 }
@@ -136,7 +136,7 @@ void setup() {
   tft.print("C");
   tft.setCursor(0,40);
   tft.print("h=");
-    tft.setCursor(100,40);
+  tft.setCursor(100,40);
   tft.print("%");
 }
 
