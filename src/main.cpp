@@ -22,12 +22,26 @@ const uint16_t  Display_Color_Magenta      = 0xF81F;
 const uint16_t  Display_Color_Yellow       = 0xFFE0;
 const uint16_t  Display_Color_White        = 0xFFFF;
 
+volatile uint8_t flagButtonPushed = 0;
+
+
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 
 typedef struct {  //для практики и удобства
   int8_t temperature;
   uint8_t humidity; 
 } dataSensor;
+
+dataSensor data;
+
+void interruptHandler(void){
+  // flagButtonPushed = 1; //если нужно обработать прерывание по флагу
+  Serial.print("Data sensor: Temperature = ");
+  Serial.print(data.temperature);
+  Serial.print("C, Humidity = ");
+  Serial.print(data.humidity);
+  Serial.println("%.");
+}
 
 uint8_t waitLine(uint8_t waitValue, uint16_t maxTime, uint8_t pin){
   unsigned long timeStart = micros();
@@ -85,7 +99,6 @@ void readSensors(dataSensor * data, uint8_t pin){
 }
 
 void printSensorsData(uint8_t pin){
-  dataSensor data;
   static dataSensor oldData;
   readSensors(&data, pin);
 
@@ -105,14 +118,16 @@ void printSensorsData(uint8_t pin){
     tft.print(data.humidity);
   }
   
-  //пишем в порт
-  Serial.print("Data sensor: Temperature = ");
-  Serial.print(data.temperature);
-  Serial.print("C, Humidity = ");
-  Serial.print(data.humidity);
-  Serial.println("%.");
-
-  //
+  if (flagButtonPushed){ //если нужно обработать прерывание по флагу
+    //пишем в порт
+    // Serial.print("Data sensor: Temperature = ");
+    // Serial.print(data.temperature);
+    // Serial.print("C, Humidity = ");
+    // Serial.print(data.humidity);
+    // Serial.println("%.");
+    // flagButtonPushed = 0;
+  }
+  
   oldData.humidity = data.humidity;
   oldData.temperature = data.temperature;
 }
@@ -138,9 +153,12 @@ void setup() {
   tft.print("h=");
   tft.setCursor(100,40);
   tft.print("%");
+
+  pinMode(2, INPUT_PULLUP);
+  attachInterrupt(0, interruptHandler, FALLING);
 }
 
 void loop() {
   printSensorsData(pinSensor);
-  delay(2000);
+  delay(1000);
 }
