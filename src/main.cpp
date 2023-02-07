@@ -161,7 +161,6 @@ void setup() {
 
 void loop() {
   printSensorsData(pinSensor);
-  tft.setTextSize(2);
   uint8_t y = 117;
   uint8_t d = 10;
   for (size_t i = 10; i < 120; i++)
