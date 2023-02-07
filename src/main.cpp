@@ -4,7 +4,6 @@
 #include "Adafruit_GFX.h"
 #include "Adafruit_ST7735.h"
 
-
 #define pinSensor 7
 #define switchPinToIn pinMode(pinSensor, INPUT); 
 #define switchPinToOut pinMode(pinSensor, OUTPUT); 
@@ -156,9 +155,26 @@ void setup() {
 
   pinMode(2, INPUT_PULLUP);
   attachInterrupt(0, interruptHandler, FALLING);
+
 }
+
 
 void loop() {
   printSensorsData(pinSensor);
-  delay(1000);
+  tft.setTextSize(2);
+  uint8_t y = 117;
+  uint8_t d = 10;
+  for (size_t i = 10; i < 120; i++)
+  {
+    tft.drawCircle(i, y, d, Display_Color_Cyan);
+    delay(10);
+    tft.drawCircle(i, y, d, Display_Color_Black);
+  }
+
+  for (size_t i = 120; i >= 10; i--)
+  {
+    tft.drawCircle(i, y, d, Display_Color_Cyan);
+    delay(10);
+    tft.drawCircle(i, y, d, Display_Color_Black);
+  }
 }
