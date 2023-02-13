@@ -23,7 +23,6 @@ const uint16_t  Display_Color_White        = 0xFFFF;
 
 volatile uint8_t flagButtonPushed = 0;
 
-
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 
 typedef struct {  //для практики и удобства
@@ -31,7 +30,15 @@ typedef struct {  //для практики и удобства
   uint8_t humidity; 
 } dataSensor;
 
-dataSensor data;
+typedef struct
+{
+  uint8_t value[126];
+  uint8_t lastValue;
+  unsigned long long lastTimeData;
+} valueHolder;
+
+dataSensor data, oldData;
+valueHolder humidityList;
 
 void interruptHandler(void){
   // flagButtonPushed = 1; //если нужно обработать прерывание по флагу
@@ -97,41 +104,66 @@ void readSensors(dataSensor * data, uint8_t pin){
   data->temperature = readWordFromSensor(pin);
 }
 
+void printTemperatureValue(uint8_t x, uint8_t y, uint16_t color){
+    static uint8_t old_x = 255, old_y = 255;
+   //стираем старые данные
+    tft.setTextColor(0x0000);
+    tft.setCursor(old_x,old_y);
+    tft.print(oldData.temperature);
+    //пишем новые данные
+    tft.setTextColor(color);
+    tft.setCursor(x,y);
+    tft.print(data.temperature);
+
+    old_x = x;
+    old_y = y;
+}
+
+void printHumidityValue(uint8_t x, uint8_t y, uint16_t color){
+    static uint8_t old_x = 255, old_y = 255;
+   //стираем старые данные
+    tft.setTextColor(0x0000);
+    tft.setCursor(old_x,old_y);
+    tft.print(oldData.humidity);
+    //пишем новые данные
+    tft.setTextColor(color);
+    tft.setCursor(x,y);
+    tft.print(data.humidity);
+
+    old_x = x;
+    old_y = y;
+}
+
 void printSensorsData(uint8_t pin){
-  static dataSensor oldData;
   readSensors(&data, pin);
 
-  if (data.temperature != oldData.temperature || data.humidity != oldData.humidity) {
-    //стираем старые данные
-    tft.setTextColor(0x0000);
-    tft.setCursor(50,0);
-    tft.print(oldData.temperature);
-    tft.setCursor(50,40);
-    tft.print(oldData.humidity);
-
-    //пишем новые данные
-    tft.setTextColor(data.humidity > 30 ? Display_Color_Red : Display_Color_Yellow);
-    tft.setCursor(50,0);
-    tft.print(data.temperature);
-    tft.setCursor(50,40);
-    tft.print(data.humidity);
+  if (data.temperature != oldData.temperature) {
+    printTemperatureValue(50, 0, data.temperature > 30 ? Display_Color_Red : Display_Color_Yellow);
   }
-  
-  if (flagButtonPushed){ //если нужно обработать прерывание по флагу
-    //пишем в порт
-    // Serial.print("Data sensor: Temperature = ");
-    // Serial.print(data.temperature);
-    // Serial.print("C, Humidity = ");
-    // Serial.print(data.humidity);
-    // Serial.println("%.");
-    // flagButtonPushed = 0;
+  if (data.humidity != oldData.humidity) {
+    printHumidityValue(50, 40, data.humidity > 30 ? Display_Color_Red : Display_Color_Yellow);
   }
   
   oldData.humidity = data.humidity;
   oldData.temperature = data.temperature;
 }
 
+void printHumidityGraf(void){
+  static uint8_t oldData[126] = {0};
+
+  for (size_t i = 1; i < 126; i++)
+  {
+    if (oldData[i] != humidityList.value[i]){
+      tft.drawLine(i, 126, i, 127 - oldData[i], Display_Color_Black);
+      tft.drawLine(i, 126, i, 127 - humidityList.value[i] + 20, Display_Color_Cyan);
+      oldData[i] = humidityList.value[i];
+    }
+  }
+}
+
+
 void setup() {
+  humidityList.lastValue = 0;
   Serial.begin(115200);
   switchPinToOut;
   digitalWrite(pinSensor,HIGH);
@@ -153,27 +185,29 @@ void setup() {
   tft.setCursor(100,40);
   tft.print("%");
 
+  tft.drawLine(0, 79, 127, 79, Display_Color_Red);
+  tft.drawLine(0, 127, 127, 127, Display_Color_Red);
+  tft.drawLine(0, 127, 0, 79, Display_Color_Red);
+  tft.drawLine(127, 127, 127, 79, Display_Color_Red);
   pinMode(2, INPUT_PULLUP);
   attachInterrupt(0, interruptHandler, FALLING);
-
 }
 
 
 void loop() {
   printSensorsData(pinSensor);
-  uint8_t y = 117;
-  uint8_t d = 10;
-  for (size_t i = 10; i < 120; i++)
-  {
-    tft.drawCircle(i, y, d, Display_Color_Cyan);
-    delay(10);
-    tft.drawCircle(i, y, d, Display_Color_Black);
-  }
 
-  for (size_t i = 120; i >= 10; i--)
-  {
-    tft.drawCircle(i, y, d, Display_Color_Cyan);
-    delay(10);
-    tft.drawCircle(i, y, d, Display_Color_Black);
+  if (millis() - humidityList.lastTimeData > 60000){
+    if (humidityList.lastValue >= 126){ //если месь массив заполнен, передвигаем массив на 1 влево
+      for (size_t i = 0; i < 125; i++)
+      {
+        humidityList.value[i] = humidityList.value[i+1];
+      }
+      humidityList.lastValue--;
+    }
+    humidityList.value[humidityList.lastValue++] = data.humidity;
+    humidityList.lastTimeData = millis();
   }
+  printHumidityGraf();
+  delay(1000);
 }
